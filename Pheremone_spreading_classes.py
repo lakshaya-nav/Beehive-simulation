@@ -40,28 +40,34 @@ class BeeGroup:
             pygame.draw.circle(screen, self.color, (int(x), int(y)), 2)
 
 class Retinue(BeeGroup):
-    def update_pos(self, queen_pos, orbit_speed=0.03, attraction_strength=0.1, noise=0.7, r_min=5, r_max=15):
+    ATTRACTION_STRENGTH = 0.1
+    NOISE = 0.7
+    ORBIT_SPEED = 0.03
+    R_MIN = 5
+    R_MAX = 15
+
+    def update_pos(self, queen_pos):
         for i, (x, y) in enumerate(self.positions):
             dist = self.dist_from_queen(queen_pos, x, y)
             ux, uy = self.norm_direction(queen_pos, x, y)
 
             # attraction force of the retinue to the queen bee
-            if dist > r_max:
-                ax = ux * attraction_strength
-                ay = uy * attraction_strength
-            elif dist < r_min:
-                ax = -ux * attraction_strength
-                ay = -uy * attraction_strength
+            if dist > Retinue.R_MAX:
+                ax = ux * Retinue.ATTRACTION_STRENGTH
+                ay = uy * Retinue.ATTRACTION_STRENGTH
+            elif dist < Retinue.R_MIN:
+                ax = -ux * Retinue.ATTRACTION_STRENGTH
+                ay = -uy * Retinue.ATTRACTION_STRENGTH
             else:
                 ax, ay = 0, 0
 
             # orbit around the queen bee (perpendicular to queen direction)
-            ox = -uy * orbit_speed
-            oy = ux * orbit_speed
+            ox = -uy * Retinue.ORBIT_SPEED
+            oy = ux * Retinue.ORBIT_SPEED
 
             # random motion
-            nx = random.uniform(-noise, noise)
-            ny = random.uniform(-noise, noise)
+            nx = random.uniform(-Retinue.NOISE, Retinue.NOISE)
+            ny = random.uniform(-Retinue.NOISE, Retinue.NOISE)
 
             # new x,y pos
             x_new = x + ax + ox + nx
@@ -71,22 +77,26 @@ class Retinue(BeeGroup):
 
 
 class Nurse(BeeGroup):
-    def update_pos(self, queen_pos, brood_radius=50, attraction_strength=0.01, noise=0.7):
+    ATTRACTION_STRENGTH = 0.01
+    NOISE = 0.7
+    BROOD_RADIUS = 50
+
+    def update_pos(self, queen_pos):
         for i, (x, y) in enumerate(self.positions):
             dist = self.dist_from_queen(queen_pos, x, y)
             ux, uy = self.norm_direction(queen_pos, x, y)
 
             # attraction to the centre of the hive
-            if dist > brood_radius:
-                ax = ux * attraction_strength
-                ay = uy * attraction_strength
+            if dist > Nurse.BROOD_RADIUS:
+                ax = ux * Nurse.ATTRACTION_STRENGTH
+                ay = uy * Nurse.ATTRACTION_STRENGTH
             else:
-                ax = -ux * attraction_strength
-                ay = -uy * attraction_strength
+                ax = -ux * Nurse.ATTRACTION_STRENGTH
+                ay = -uy * Nurse.ATTRACTION_STRENGTH
 
             # random motion
-            nx = random.uniform(-noise, noise)
-            ny = random.uniform(-noise, noise)
+            nx = random.uniform(-Nurse.NOISE, Nurse.NOISE)
+            ny = random.uniform(-Nurse.NOISE, Nurse.NOISE)
 
             # new x,y pos
             x_new = x + ax + nx
@@ -95,7 +105,10 @@ class Nurse(BeeGroup):
             self.positions[i] = (x_new, y_new)
 
 class OtherBees(BeeGroup):
-    def update_pos(self, queen_pos, attraction_strength, noise):
+    ATTRACTION_STRENGTH = 0.004
+    NOISE = 2.5
+
+    def update_pos(self, queen_pos):
         r_min = self.radius_range[0]
         r_max = self.radius_range[1]
 
@@ -104,17 +117,17 @@ class OtherBees(BeeGroup):
             ux, uy = self.norm_direction(queen_pos, x, y)
 
             if dist > r_max:
-                ax = ux * attraction_strength
-                ay = uy * attraction_strength
+                ax = ux * self.ATTRACTION_STRENGTH
+                ay = uy * self.ATTRACTION_STRENGTH
             elif dist < r_min:
-                ax = -ux * attraction_strength
-                ay = -uy * attraction_strength
+                ax = -ux * self.ATTRACTION_STRENGTH
+                ay = -uy * self.ATTRACTION_STRENGTH
             else:
                 ax, ay = 0, 0
 
             # random walk
-            nx = random.uniform(-noise, noise)
-            ny = random.uniform(-noise, noise)
+            nx = random.uniform(-self.NOISE, self.NOISE)
+            ny = random.uniform(-self.NOISE, self.NOISE)
 
             # New position
             x_new = x + ax + nx
@@ -122,21 +135,27 @@ class OtherBees(BeeGroup):
 
             self.positions[i] = (x_new, y_new)
 
+class WorkerBees(OtherBees):
+    ATTRACTION_STRENGTH = 0.004
+    NOISE = 2.5
 
-class Simulation(BeeGroup):
+class Drone(OtherBees):
+    ATTRACTION_STRENGTH = 0.002
+    NOISE = 1.0
+
+
+class Simulation:
     def __init__(self, width=1000, height=1000):
         self.width = width
         self.height = height
         centre = (width/2, height/2)
-
         population = {'queen': 1, 'retinue': 60, 'nurse': 450, 'in_hive_workers': 540, 'drones': 150}
-        self.bee_groups = [
-            BeeGroup('queen', (255,255,0), population['queen'], [0,0], centre),
-            Retinue('retinue', (255,150,0), population['retinue'], [5,15], centre),
-            Nurse('nurse', (0,255,0), population['nurse'], [20,100], centre),
-            OtherBees('in_hive_workers', (0,255,255), population['in_hive_workers'], [100,300], centre),
-            OtherBees('drones', (0,128,255), population['drones'], [200,400], centre)
-        ]
+        self.queen = BeeGroup('queen', (255,255,0), population['queen'], [0,0], centre)
+        self.retinues = Retinue('retinue', (255,150,0), population['retinue'], [5,15], centre)
+        self.nurses = Nurse('nurse', (0,255,0), population['nurse'], [20,100], centre)
+        self.workers = WorkerBees('in_hive_workers', (0, 255, 255), population['in_hive_workers'], [100, 300], centre)
+        self.drones = Drone('drones', (0, 128, 255), population['drones'], [200, 400], centre)
+
 
         pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
@@ -150,17 +169,12 @@ class Simulation(BeeGroup):
                     running = False
 
             self.screen.fill((0,0,0))
-            queen_pos = self.bee_groups[0].positions[0]
+            queen_pos = self.queen.positions[0]
 
-            for group in self.bee_groups[1:3]:
+            self.queen.plot_bees(self.screen)
+            for group in [self.retinues, self.nurses, self.workers, self.drones]:
                 group.update_pos(queen_pos)
                 group.plot_bees(self.screen)
-
-            self.bee_groups[0].plot_bees(self.screen)
-            self.bee_groups[3].update_pos(queen_pos, 0.004, 2.5)
-            self.bee_groups[3].plot_bees(self.screen)
-            self.bee_groups[4].update_pos(queen_pos, 0.002, 1.0)
-            self.bee_groups[4].plot_bees(self.screen)
 
             pygame.display.flip()
             self.clock.tick(60)
@@ -170,4 +184,5 @@ class Simulation(BeeGroup):
 if __name__ == '__main__':
     sim = Simulation()
     sim.run()
+
 
