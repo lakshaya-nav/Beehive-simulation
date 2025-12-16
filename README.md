@@ -7,7 +7,7 @@ To run the main population simulation (which includes the pheromone spreading si
 The simulate function is called with parameters as follows: 
 simulate(simulation_horizon, population_simulation_step=1, initial_state_of_beehive, colony_parameters, pheromone_simulation_run_step, temperatures=None)
 
-To run the climate case study the fille caseStudy.py should be run. The .csv files containing the temperatures need to be in the same folder as the caseStudy.py and mainCode.py files. The .csv files for the experimentation in the report are provided. To adjust the parameters of each climate, the simulate() calls in each funtion corrisponding to a country should be adjusted.
+To run the climate case study the fille caseStudy.py should be run. The .csv files containing the temperatures need to be in the same folder as the caseStudy.py and mainCode.py files. The .csv files for the experimentation in the report are provided. To adjust the parameters of each climate, the simulate() calls in each funtion corrisponding to a country should be adjusted. Note that to run the case study file, the main file is imported so make sure they are in the same folder.
 
 To run the recursive child beehive formation simulation, the file recursive_beehive_formation.py() should be run. 
 
