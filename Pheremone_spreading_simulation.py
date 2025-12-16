@@ -6,11 +6,10 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from scipy.spatial import KDTree
 
-
 class BeeGroup:
-    def __init__(self, name, color, population, radius_range, centre):
+    def __init__(self, name, colour, population, radius_range, centre):
         self.name = name
-        self.color = color
+        self.colour = colour
         self.population = population
         self.radius_range = radius_range
         self.positions = self.generate_positions(centre)
@@ -43,9 +42,10 @@ class BeeGroup:
         for i, (x,y) in enumerate(self.positions):
             bee_index = offset + i
             if pheromones[bee_index] > 0:
-                pygame.draw.circle(screen, (255,255,255), (int(x), int(y)), 2)
+                pygame.draw.circle(screen, (255, 255, 255), (int(x), int(y)), 2)
             else:
-                pygame.draw.circle(screen, self.color, (int(x), int(y)), 2)
+                pygame.draw.circle(screen, self.colour, (int(x), int(y)), 2)
+
 
 class Retinue(BeeGroup):
     ATTRACTION_STRENGTH = 0.1
@@ -156,7 +156,7 @@ class PheromoneSpreading:
         self.queen_lifetime = 3
         self.alpha = 1.5
         self.beta = 0.0025
-        self.p_init = 130
+        self.p_init = 1
         self.positions = positions
         self.graph = nx.Graph()
         self.pheromone_per_bee = [0] * len(self.positions)
@@ -178,7 +178,7 @@ class PheromoneSpreading:
         plt.plot(t,p)
         plt.xlabel("Queen age (days)")
         plt.ylabel("Pheromone level")
-        plt.title("Queen pheromone decline over time")
+        plt.title("QMP decline over time")
         plt.grid(True)
         plt.show()
 
@@ -198,24 +198,32 @@ class PheromoneSpreading:
             if p > 0:
                 neighbors = list(self.graph.neighbors(i))
                 for n in neighbors:
-                    updates[n] += p * self.transfer_rate * self.graph[i][n]['weight']
+                    updates[n] += p * self.transfer_rate
+                    updates[i] -= p * self.transfer_rate
+        updates[0] += self.p_init
 
         for i in range(len(self.pheromone_per_bee)):
             self.pheromone_per_bee[i] += updates[i]
 
+    def percent_worker_pheromone(self, start_idx, pop):
+        avg = sum(self.pheromone_per_bee[start_idx:start_idx + pop]) / pop
+        print(f'avg: {avg}')
+        print(f'queen: {self.pheromone_per_bee[0]}')
+        percent_of_queen_pheromone = (avg/self.pheromone_per_bee[0])*100
+        return percent_of_queen_pheromone
 
 
 class Simulation:
-    def __init__(self, width=1000, height=1000):
+    def __init__(self, population, width=1000, height=1000):
         self.width = width
         self.height = height
         centre = (width/2, height/2)
-        population = {'queen': 1, 'retinue': 60, 'nurse': 450, 'in_hive_workers': 540, 'drones': 150}
-        self.queen = BeeGroup('queen', (255,255,0), population['queen'], [0,0], centre)
-        self.retinues = Retinue('retinue', (255,150,0), population['retinue'], [5,15], centre)
-        self.nurses = Nurse('nurse', (0,255,0), population['nurse'], [20,100], centre)
-        self.workers = WorkerBees('in_hive_workers', (0, 255, 255), population['in_hive_workers'], [100, 300], centre)
-        self.drones = Drone('drones', (0, 128, 255), population['drones'], [200, 400], centre)
+        self.population = population
+        self.queen = BeeGroup('queen', (255,255,0), self.population['queen'], [0,0], centre)
+        self.retinues = Retinue('retinue', (255,150,0), self.population['retinue'], [5,15], centre)
+        self.nurses = Nurse('nurse', (0,255,0), self.population['nurse'], [20,100], centre)
+        self.workers = WorkerBees('in_hive_workers', (0, 255, 255), self.population['in_hive_workers'], [100, 300], centre)
+        self.drones = Drone('drones', (0, 128, 255), self.population['drones'], [200, 400], centre)
 
         bees_positions = (self.queen.positions + self.retinues.positions + self.nurses.positions + self.workers.positions + self.drones.positions)
         self.pheromones = PheromoneSpreading(bees_positions)
@@ -224,18 +232,22 @@ class Simulation:
         self.screen = pygame.display.set_mode((self.width, self.height))
         self.clock = pygame.time.Clock()
 
+
     def quit(self):
         total = 0
         for i in self.pheromones.pheromone_per_bee:
             if i > 0:
                 total += 1
 
-        if total > 0.98 * len(self.pheromones.pheromone_per_bee):
+        if total > 0.95 * len(self.pheromones.pheromone_per_bee):
             return True
         return False
 
+
     def run(self):
+        count = 0
         running = True
+
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -261,9 +273,37 @@ class Simulation:
 
             pygame.display.flip()
             self.clock.tick(60)
+            count += 1
 
         pygame.quit()
+        print(count)
+        start_idx = self.population['queen'] + self.population['retinue'] + self.population['nurse']
+        return self.pheromones.percent_worker_pheromone(start_idx, self.population['in_hive_workers'])
+
+def overcrowding(percent_of_queen_pheromone, total_pop):
+    max_pop = 8000
+    min_pheromone = 0.008
+    pop_weight = 0.6
+    pheromone_weight = 0.4
+    if max_pop < total_pop:
+        pop_factor = 1
+    else:
+        pop_factor = total_pop / max_pop
+    if percent_of_queen_pheromone < min_pheromone:
+        pheromone_factor = 1
+    else:
+        pheromone_factor = min_pheromone / percent_of_queen_pheromone
+    print(f'population factor: {pop_factor}')
+    print(f'pheromone factor: {pheromone_factor}')
+    overcrowding_index = (pop_weight * pop_factor) + (pheromone_weight * pheromone_factor)
+    return overcrowding_index
 
 if __name__ == '__main__':
-    sim = Simulation()
-    sim.run()
+    population = {'queen': 1, 'retinue': 360, 'nurse': 2700, 'in_hive_workers': 3240, 'drones': 900}
+    total_pop = sum(population.values())
+    print(f'total population: {total_pop}')
+    sim = Simulation(population)
+    p_workers = sim.run()
+    print(f'Percent of queen bee pheromone: {p_workers}')
+    overcrowding_index = overcrowding(p_workers, total_pop)
+    print(f'Overcrowding index: {overcrowding_index}')
