@@ -11,4 +11,4 @@ To run the climate case study the fille caseStudy.py should be run. The .csv fil
 
 To run the recursive child beehive formation simulation, the file recursive_beehive_formation.py() should be run. 
 
-This simulation utilizes many python libraries and toolboxes.
+This simulation utilises many python libraries and toolboxes.
